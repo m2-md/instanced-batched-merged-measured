@@ -1,5 +1,9 @@
 # One Scene, Four Build Paths — InstancedMesh · BatchedMesh · mergeGeometries
 
+<!-- LINKS:BEGIN — üretildi: scripts/sync-repo-links.py · elle düzenleme -->
+**▶ [Live demo](https://m2-md.github.io/instanced-batched-merged-measured/)** · [Source](https://github.com/m2-md/instanced-batched-merged-measured)
+<!-- LINKS:END -->
+
 The working code behind the article "InstancedMesh, BatchedMesh or mergeGeometries?
 One Scene, Three Build Paths, One Measured Decision Table". A single seeded level plan
 (40 prop types × 30 copies = **1,200 props**, one material) is built four different ways:
