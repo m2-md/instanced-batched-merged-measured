@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>InstancedMesh · BatchedMesh · mergeGeometries — Aynı Sahne, Dört İnşa Yolu</title>
+    <style>
+      :root {
+        --cyan: #22d3ee;
+        --violet: #a78bfa;
+        --magenta: #f472b6;
+        --success: #34d399;
+        --warning: #fbbf24;
+        --ink: #e6e9f2;
+        --muted: rgba(255, 255, 255, 0.55);
+        --glass: rgba(17, 21, 32, 0.55);
+        --hairline: rgba(255, 255, 255, 0.08);
+        --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: radial-gradient(ellipse at 50% 0%, #10141f, #080a11 60%, #05060b);
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        color: var(--ink);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      canvas#scene {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+
+      /* Sinematik vignette — kenarları karanlığa çeker. */
+      #vignette {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(
+          ellipse at 50% 45%,
+          transparent 50%,
+          rgba(0, 0, 0, 0.58) 100%
+        );
+        z-index: 1;
+      }
+
+      /* --- Cam paneli --- */
+      .panel {
+        position: fixed;
+        z-index: 2;
+        background: var(--glass);
+        backdrop-filter: blur(14px) saturate(1.2);
+        -webkit-backdrop-filter: blur(14px) saturate(1.2);
+        border: 1px solid var(--hairline);
+        border-radius: 16px;
+        box-shadow:
+          0 8px 32px rgba(0, 0, 0, 0.45),
+          inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      }
+
+      #hud {
+        top: 18px;
+        left: 18px;
+        width: 316px;
+        padding: 16px;
+      }
+
+      #measure {
+        top: 18px;
+        right: 18px;
+        width: 372px;
+        padding: 16px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .brand-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--cyan);
+        box-shadow: 0 0 14px 2px rgba(34, 211, 238, 0.7);
+      }
+      .brand-title {
+        font-size: 13px;
+        font-weight: 650;
+        letter-spacing: 0.06em;
+      }
+      .brand-sub {
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+
+      .panel-label {
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 14px 0 8px;
+      }
+      .panel-label:first-of-type {
+        margin-top: 4px;
+      }
+
+      /* --- Yol seçici --- */
+      .paths {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+      }
+      .path {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 9px;
+        border-radius: 10px;
+        border: 1px solid var(--hairline);
+        background: rgba(255, 255, 255, 0.03);
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+        transition:
+          border-color 180ms ease,
+          box-shadow 180ms ease,
+          color 180ms ease;
+      }
+      .path .num {
+        font-family: var(--mono);
+        font-size: 10px;
+        padding: 1px 5px;
+        border-radius: 5px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+      }
+      .path.active {
+        color: var(--ink);
+        border-color: rgba(34, 211, 238, 0.55);
+        box-shadow:
+          0 0 22px rgba(34, 211, 238, 0.28),
+          inset 0 0 18px rgba(34, 211, 238, 0.06);
+      }
+      .path.active .num {
+        color: var(--cyan);
+        border-color: rgba(34, 211, 238, 0.5);
+      }
+
+      /* --- Sayı ızgarası --- */
+      .stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .stat {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--hairline);
+        border-radius: 10px;
+        padding: 8px 10px;
+      }
+      .stat.wide {
+        grid-column: 1 / -1;
+      }
+      .stat-k {
+        display: block;
+        font-size: 9px;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .stat-v {
+        display: block;
+        font-family: var(--mono);
+        font-size: 17px;
+        font-weight: 600;
+        margin-top: 3px;
+        color: var(--cyan);
+      }
+      .stat-v.small {
+        font-size: 13px;
+      }
+      .stat-v.violet {
+        color: var(--violet);
+      }
+      .stat-v.magenta {
+        color: var(--magenta);
+      }
+
+      .flags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      .flag {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--hairline);
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--muted);
+      }
+      .flag.on {
+        color: var(--success);
+        border-color: rgba(52, 211, 153, 0.45);
+        box-shadow: 0 0 14px rgba(52, 211, 153, 0.22);
+      }
+      .flag.off {
+        color: var(--warning);
+        border-color: rgba(251, 191, 36, 0.45);
+      }
+
+      /* --- Ölçüm tablosu --- */
+      table.grid {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+      table.grid th {
+        text-align: right;
+        font-family: system-ui, sans-serif;
+        font-size: 9px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+        font-weight: 500;
+        padding: 0 0 6px;
+      }
+      table.grid th:first-child {
+        text-align: left;
+      }
+      table.grid td {
+        text-align: right;
+        padding: 4px 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        color: var(--ink);
+      }
+      table.grid td:first-child {
+        text-align: left;
+        font-family: system-ui, sans-serif;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      table.grid tr.live td:first-child {
+        color: var(--cyan);
+      }
+      .empty {
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .note {
+        font-size: 10px;
+        color: var(--muted);
+        line-height: 1.5;
+        margin-top: 10px;
+      }
+      .pick {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--magenta);
+        margin-top: 8px;
+        min-height: 15px;
+        word-break: break-all;
+      }
+
+      /* --- Kontrol pill'i --- */
+      #controls {
+        position: fixed;
+        z-index: 2;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 10px 16px;
+        background: var(--glass);
+        backdrop-filter: blur(14px) saturate(1.2);
+        -webkit-backdrop-filter: blur(14px) saturate(1.2);
+        border: 1px solid var(--hairline);
+        border-radius: 999px;
+        box-shadow:
+          0 8px 32px rgba(0, 0, 0, 0.45),
+          inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        font-size: 12px;
+        color: var(--muted);
+      }
+      kbd {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 7px;
+        padding: 3px 8px;
+        min-width: 22px;
+        text-align: center;
+      }
+      .pill-sep {
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 10px;
+        margin: 0 6px 0 2px;
+      }
+
+      #busy {
+        position: fixed;
+        z-index: 3;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(5, 6, 11, 0.5);
+        backdrop-filter: blur(2px);
+        font-family: var(--mono);
+        font-size: 13px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--cyan);
+        text-shadow: 0 0 18px rgba(34, 211, 238, 0.6);
+      }
+      #busy.on {
+        display: flex;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+    <div id="vignette"></div>
+
+    <section id="hud" class="panel">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <div>
+          <div class="brand-title">THREE · BUILD PATHS</div>
+          <div class="brand-sub">40 TYPES · 1200 PROPS · 1 MATERIAL</div>
+        </div>
+      </div>
+
+      <div class="panel-label">BUILD PATH</div>
+      <div class="paths">
+        <div class="path" data-path="0"><span class="num">1</span> NAIVE MESH</div>
+        <div class="path" data-path="1"><span class="num">2</span> INSTANCED</div>
+        <div class="path" data-path="2"><span class="num">3</span> BATCHED</div>
+        <div class="path" data-path="3"><span class="num">4</span> MERGED</div>
+      </div>
+
+      <div class="panel-label">LIVE COUNTERS</div>
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-k">GL CALLS · REAL</span>
+          <span id="stat-calls" class="stat-v">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-k">PROP DRAW · MODEL</span>
+          <span id="stat-propdraw" class="stat-v violet">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-k">TRIANGLES · REAL</span>
+          <span id="stat-tris" class="stat-v small">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-k">SCENE NODES · MODEL</span>
+          <span id="stat-nodes" class="stat-v small violet">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-k">CPU FRAME p50 · REAL</span>
+          <span id="stat-p50" class="stat-v small">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-k">CPU FRAME p95 · REAL</span>
+          <span id="stat-p95" class="stat-v small">—</span>
+        </div>
+        <div class="stat wide">
+          <span class="stat-k">GEOMETRY + INSTANCE BUFFER · MODEL</span>
+          <span id="stat-mem" class="stat-v small magenta">—</span>
+        </div>
+        <div class="stat wide">
+          <span class="stat-k">BUILD TIME · REAL</span>
+          <span id="stat-build" class="stat-v small">—</span>
+        </div>
+      </div>
+
+      <div class="flags">
+        <span id="flag-multidraw" class="flag">WEBGL_MULTI_DRAW</span>
+        <span id="flag-culling" class="flag">BATCH CULL+SORT</span>
+      </div>
+    </section>
+
+    <section id="measure" class="panel">
+      <div class="panel-label">CPU FRAME SWEEP · 20 WARMUP + 120 FRAMES</div>
+      <div id="sweep-body">
+        <div class="empty">
+          <kbd>M</kbd> tuşu dört yolu sırayla ölçer. Süpürme gölge geçişini ve bloom
+          zincirini dışarıda bırakır: 640×360 hedefe düz <code>renderer.render</code>.
+        </div>
+      </div>
+
+      <div class="panel-label">GL CALL PROBE · PROPS ONLY</div>
+      <div id="probe-body">
+        <div class="empty">
+          <kbd>G</kbd> tuşu dört yolu ayrı bir 1×1 renderer'da çizip gerçek
+          <code>renderer.info.render.calls</code> okur — zemin, gölge ve post-process
+          zinciri sayıya karışmadan.
+        </div>
+      </div>
+
+      <div class="panel-label">RAYCAST PICK</div>
+      <div id="pick" class="pick">—</div>
+      <div class="note">
+        Sahneye tıkla: instanced yolda <code>instanceId</code>, batched yolda
+        <code>batchId</code>, merged yolda yalnızca <code>faceIndex</code> döner.
+      </div>
+    </section>
+
+    <div id="controls">
+      <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd>
+      <span class="pill-sep">path</span>
+      <kbd>M</kbd>
+      <span class="pill-sep">sweep</span>
+      <kbd>G</kbd>
+      <span class="pill-sep">gl probe</span>
+      <kbd>C</kbd>
+      <span class="pill-sep">cull</span>
+      <kbd>P</kbd>
+      <span class="pill-sep">orbit</span>
+    </div>
+
+    <div id="busy">ÖLÇÜM SÜRÜYOR…</div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
