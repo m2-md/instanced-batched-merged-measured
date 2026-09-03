@@ -1,7 +1,7 @@
-// view/hud.ts — cam panel HUD'u. İki tür sayı var ve ikisi ayrı etiketlenir:
-//   · REAL  → renderer'dan/saatten O KARE okunan ölçüm (GL CALLS, TRIANGLES, CPU).
-//   · MODEL → mimarinin doğrudan sonucu, ölçüm değil (PROP DRAW, SCENE NODES, tampon).
-// Karıştırmak, "1 draw call" yazıp 1.200 çizmenin en kolay yolu.
+// view/hud.ts — the glass-panel HUD. There are two kinds of number and each is labeled:
+//   · REAL  → a measurement read THAT FRAME from the renderer/clock (GL CALLS, TRIANGLES, CPU).
+//   · MODEL → a direct consequence of the architecture, not a measurement (PROP DRAW, SCENE NODES, buffers).
+// Mixing them up is the easiest way to write "1 draw call" and draw 1,200.
 import { formatBytes } from "../geometry-bytes.js";
 import type { PathResult } from "../measure.js";
 
@@ -35,10 +35,10 @@ export interface HudFrame {
   buildMs: number;
 }
 
-const NF = new Intl.NumberFormat("tr-TR");
+const NF = new Intl.NumberFormat("en-US");
 
 function ms(v: number): string {
-  return `${v.toFixed(2).replace(".", ",")} ms`;
+  return `${v.toFixed(2)} ms`;
 }
 
 export class Hud {
@@ -48,7 +48,7 @@ export class Hud {
     this.el.paths.forEach((p) => {
       p.classList.toggle("active", Number(p.dataset.path) === index);
     });
-    document.title = `${label} — Aynı Sahne, Dört İnşa Yolu`;
+    document.title = `${label} — One Scene, Four Build Paths`;
   }
 
   render(f: HudFrame): void {
@@ -64,9 +64,9 @@ export class Hud {
   }
 
   /**
-   * İki bayrak da BatchedMesh'e ait. batchCull, `perObjectFrustumCulled` +
-   * `sortObjects` ikilisinin o anki değeri: C tuşu bunu çevirir ve M süpürmesi
-   * bu değerle koşar, böylece elemenin CPU faturası ayrı ayrı ölçülebilir.
+   * Both flags belong to BatchedMesh. batchCull is the current value of the
+   * `perObjectFrustumCulled` + `sortObjects` pair: the C key flips it and the M sweep
+   * runs with that value, so the CPU bill of culling can be measured separately.
    */
   setFlags(multiDraw: boolean, batchCull: boolean): void {
     const md = this.el.flagMultiDraw;
@@ -87,14 +87,14 @@ export class Hud {
     this.el.pick.textContent = text;
   }
 
-  /** M süpürmesinin sonucu: ölçülen CPU kare süreleri + o karenin sayaçları. */
+  /** The result of the M sweep: measured CPU frame times + that frame's counters. */
   setSweep(results: PathResult[], note: string): void {
     const rows = results
       .map(
         (r) => `<tr>
           <td>${r.name}</td>
-          <td>${r.cpuP50.toFixed(2).replace(".", ",")}</td>
-          <td>${r.cpuP95.toFixed(2).replace(".", ",")}</td>
+          <td>${r.cpuP50.toFixed(2)}</td>
+          <td>${r.cpuP95.toFixed(2)}</td>
           <td>${NF.format(r.drawCalls)}</td>
           <td>${NF.format(r.triangles)}</td>
         </tr>`,
@@ -106,7 +106,7 @@ export class Hud {
     </table><div class="note">${note}</div>`;
   }
 
-  /** G probe'unun sonucu: props-only gerçek GL çağrısı. */
+  /** The result of the G probe: props-only real GL calls. */
   setProbe(rows: Array<{ name: string; calls: number; triangles: number }>, note: string): void {
     const body = rows
       .map(
@@ -127,7 +127,7 @@ export class Hud {
 export function collectHudElements(): HudElements {
   const byId = (id: string): HTMLElement => {
     const el = document.getElementById(id);
-    if (!el) throw new Error(`HUD elemanı yok: #${id}`);
+    if (!el) throw new Error(`HUD element not found: #${id}`);
     return el;
   };
   return {

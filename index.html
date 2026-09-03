@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>InstancedMesh · BatchedMesh · mergeGeometries — Aynı Sahne, Dört İnşa Yolu</title>
+    <title>InstancedMesh · BatchedMesh · mergeGeometries — One Scene, Four Build Paths</title>
     <style>
       :root {
         --cyan: #22d3ee;
@@ -39,7 +39,7 @@
         height: 100vh;
       }
 
-      /* Sinematik vignette — kenarları karanlığa çeker. */
+      /* Cinematic vignette — pulls the edges into darkness. */
       #vignette {
         position: fixed;
         inset: 0;
@@ -52,7 +52,7 @@
         z-index: 1;
       }
 
-      /* --- Cam paneli --- */
+      /* --- Glass panel --- */
       .panel {
         position: fixed;
         z-index: 2;
@@ -117,7 +117,7 @@
         margin-top: 4px;
       }
 
-      /* --- Yol seçici --- */
+      /* --- Path selector --- */
       .paths {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -158,7 +158,7 @@
         border-color: rgba(34, 211, 238, 0.5);
       }
 
-      /* --- Sayı ızgarası --- */
+      /* --- Number grid --- */
       .stats {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -224,7 +224,7 @@
         border-color: rgba(251, 191, 36, 0.45);
       }
 
-      /* --- Ölçüm tablosu --- */
+      /* --- Measurement table --- */
       table.grid {
         width: 100%;
         border-collapse: collapse;
@@ -279,7 +279,7 @@
         word-break: break-all;
       }
 
-      /* --- Kontrol pill'i --- */
+      /* --- Control pill --- */
       #controls {
         position: fixed;
         z-index: 2;
@@ -407,25 +407,25 @@
       <div class="panel-label">CPU FRAME SWEEP · 20 WARMUP + 120 FRAMES</div>
       <div id="sweep-body">
         <div class="empty">
-          <kbd>M</kbd> tuşu dört yolu sırayla ölçer. Süpürme gölge geçişini ve bloom
-          zincirini dışarıda bırakır: 640×360 hedefe düz <code>renderer.render</code>.
+          The <kbd>M</kbd> key measures the four paths in turn. The sweep leaves the shadow
+          pass and the bloom chain out: a plain <code>renderer.render</code> into a 640×360 target.
         </div>
       </div>
 
       <div class="panel-label">GL CALL PROBE · PROPS ONLY</div>
       <div id="probe-body">
         <div class="empty">
-          <kbd>G</kbd> tuşu dört yolu ayrı bir 1×1 renderer'da çizip gerçek
-          <code>renderer.info.render.calls</code> okur — zemin, gölge ve post-process
-          zinciri sayıya karışmadan.
+          The <kbd>G</kbd> key draws the four paths in a separate 1×1 renderer and reads the
+          real <code>renderer.info.render.calls</code> — without the ground, the shadows and the
+          post-process chain getting into the count.
         </div>
       </div>
 
       <div class="panel-label">RAYCAST PICK</div>
       <div id="pick" class="pick">—</div>
       <div class="note">
-        Sahneye tıkla: instanced yolda <code>instanceId</code>, batched yolda
-        <code>batchId</code>, merged yolda yalnızca <code>faceIndex</code> döner.
+        Click the scene: the instanced path returns <code>instanceId</code>, the batched path
+        <code>batchId</code>, the merged path only <code>faceIndex</code>.
       </div>
     </section>
 
@@ -442,7 +442,7 @@
       <span class="pill-sep">orbit</span>
     </div>
 
-    <div id="busy">ÖLÇÜM SÜRÜYOR…</div>
+    <div id="busy">MEASURING…</div>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

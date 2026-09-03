@@ -6,7 +6,7 @@ import { placementMatrix, type Placement } from "./level-plan.js";
 const _m = new THREE.Matrix4();
 const _c = new THREE.Color();
 
-/** Prop TİPİ başına bir InstancedMesh. 40 tip → 40 çizim çağrısı. */
+/** One InstancedMesh per prop TYPE. 40 types → 40 draw calls. */
 export function buildInstanced(
   catalog: CatalogEntry[],
   placements: Placement[],
@@ -31,7 +31,7 @@ export function buildInstanced(
       mesh.setColorAt(i, _c.setHSL(list[i].hue, 0.45, 0.55));
     }
     mesh.instanceMatrix.needsUpdate = true;
-    // instanceColor ilk setColorAt çağrısında doğar; öncesinde null'dır.
+    // instanceColor is born on the first setColorAt call; before that it is null.
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.computeBoundingSphere();
     group.add(mesh);

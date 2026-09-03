@@ -1,7 +1,7 @@
 // src/camera-path.ts
 import * as THREE from "three";
 
-/** Kare indeksine bağlı, deterministik yörünge. Aynı frame → aynı poz. */
+/** Deterministic orbit driven by the frame index. Same frame → same pose. */
 export function cameraPose(
   frame: number,
   totalFrames: number,

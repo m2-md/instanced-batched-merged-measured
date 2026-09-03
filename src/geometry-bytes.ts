@@ -1,9 +1,9 @@
-// src/geometry-bytes.ts — GPU'ya yüklenen tampon muhasebesi. renderer.info.memory
-// sana yalnızca KAÇ geometri/doku olduğunu söyler, kaç BAYT olduğunu söylemez;
-// bayt hesabı attribute dizilerinin byteLength'lerinden çıkar.
+// src/geometry-bytes.ts — accounting for the buffers uploaded to the GPU. renderer.info.memory
+// tells you only HOW MANY geometries/textures there are, not how many BYTES;
+// the byte count comes out of the byteLength of the attribute arrays.
 import * as THREE from "three";
 
-/** Bir geometrinin tampon boyutu: bütün attribute'lar + index. */
+/** Buffer size of one geometry: every attribute + the index. */
 export function geometryBytes(g: THREE.BufferGeometry): number {
   let bytes = 0;
   for (const key of Object.keys(g.attributes)) {
@@ -13,7 +13,7 @@ export function geometryBytes(g: THREE.BufferGeometry): number {
   return bytes;
 }
 
-/** Aynı geometri iki mesh'te paylaşılıyorsa GPU'da BİR kez durur: uuid ile tekille. */
+/** If the same geometry is shared by two meshes it lives ONCE on the GPU: dedupe by uuid. */
 export function uniqueGeometryBytes(geometries: Iterable<THREE.BufferGeometry>): number {
   const seen = new Set<string>();
   let bytes = 0;
@@ -26,15 +26,15 @@ export function uniqueGeometryBytes(geometries: Iterable<THREE.BufferGeometry>):
 }
 
 export interface MemoryReport {
-  geometryBytes: number; // benzersiz geometri tamponları
-  instanceBytes: number; // instance matris/renk tamponları ve BatchedMesh dokuları
+  geometryBytes: number; // unique geometry buffers
+  instanceBytes: number; // instance matrix/color buffers and BatchedMesh textures
   uniqueGeometries: number;
-  nodes: number; // sahne düğümü sayısı (kök dahil)
+  nodes: number; // scene node count (root included)
 }
 
-// BatchedMesh instance verisini üç DataTexture'da tutar (matris/indirect/renk).
-// three bunları private tutuyor, ama bayt hesabı için okumak gerekiyor; alan
-// yoksa sessizce atlıyoruz.
+// BatchedMesh keeps instance data in three DataTextures (matrix/indirect/color).
+// three keeps them private, but the byte count needs to read them; if a field is
+// missing we skip it silently.
 interface BatchedTextures {
   _matricesTexture?: THREE.DataTexture | null;
   _indirectTexture?: THREE.DataTexture | null;
@@ -46,7 +46,7 @@ function dataTextureBytes(tex: THREE.DataTexture | null | undefined): number {
   return data ? data.byteLength : 0;
 }
 
-/** Bir sahne kökünün GPU tampon faturası. Dört inşa yolunu aynı terazide tartar. */
+/** The GPU buffer bill of a scene root. Weighs the four build paths on the same scale. */
 export function memoryReport(root: THREE.Object3D): MemoryReport {
   const geometries: THREE.BufferGeometry[] = [];
   let instanceBytes = 0;
@@ -82,10 +82,10 @@ export function memoryReport(root: THREE.Object3D): MemoryReport {
   };
 }
 
-/** 81708 → "79,8 KB". Türkçe ondalık ayırıcı, 1 KB = 1024 B. */
+/** 81708 → "79.8 KB". 1 KB = 1024 B. */
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   const kb = bytes / 1024;
-  if (kb < 1024) return `${kb.toFixed(1).replace(".", ",")} KB`;
-  return `${(kb / 1024).toFixed(2).replace(".", ",")} MB`;
+  if (kb < 1024) return `${kb.toFixed(1)} KB`;
+  return `${(kb / 1024).toFixed(2)} MB`;
 }

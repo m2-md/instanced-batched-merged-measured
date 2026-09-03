@@ -5,7 +5,7 @@ import type { Placement } from "./level-plan.js";
 
 const UP = new THREE.Vector3(0, 1, 0);
 
-/** Yerleşim başına bir THREE.Mesh. Geometri ve materyal PAYLAŞILIR; ayrı olan sadece düğüm. */
+/** One THREE.Mesh per placement. Geometry and material are SHARED; only the node is separate. */
 export function buildNaive(
   catalog: CatalogEntry[],
   placements: Placement[],

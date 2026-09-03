@@ -1,5 +1,5 @@
-// tests/accounting.test.ts — makalede geçen BAYT sayılarının kilidi.
-// Katalog toplamı ve merged geometrinin faturası birer iddia; burada çivileniyor.
+// tests/accounting.test.ts — the lock on the BYTE numbers quoted in the article.
+// The catalog total and the merged geometry's bill are both claims; they get nailed down here.
 import { expect, it } from "vitest";
 import * as THREE from "three";
 import { buildCatalog } from "../src/catalog.js";
@@ -7,7 +7,7 @@ import { planLevel } from "../src/level-plan.js";
 import { buildMerged } from "../src/build-merged.js";
 import { geometryBytes } from "../src/geometry-bytes.js";
 
-it("katalog toplamı: 2.169 vertex, 6.150 index, 81.708 bayt", () => {
+it("catalog total: 2,169 vertices, 6,150 indices, 81,708 bytes", () => {
   const catalog = buildCatalog();
   let verts = 0;
   let indices = 0;
@@ -24,24 +24,24 @@ it("katalog toplamı: 2.169 vertex, 6.150 index, 81.708 bayt", () => {
   expect(bytes).toBe(81708);
 });
 
-it("merged fatura: Uint16 index, 3.232.080 bayt, katalogun 39,6 katı", () => {
+it("merged bill: Uint16 index, 3,232,080 bytes, 39.6× the catalog", () => {
   const catalog = buildCatalog();
   const placements = planLevel(40, 30, 1337);
   const mesh = buildMerged(catalog, placements, new THREE.MeshBasicMaterial());
 
-  // 65.070 vertex < 65.536 olduğu için mergeGeometries Uint16 index üretir.
-  // Sahne büyürse bu Uint32'ye döner ve index tamponu iki katına çıkar.
+  // Because 65,070 vertices < 65,536, mergeGeometries produces a Uint16 index.
+  // If the scene grows this turns into Uint32 and the index buffer doubles.
   expect(mesh.geometry.index!.array).toBeInstanceOf(Uint16Array);
   expect(mesh.geometry.attributes.position.count).toBeLessThan(65536);
 
-  // 65.070 × (12 pos + 12 normal + 8 uv + 12 color) + 184.500 × 2
+  // 65,070 × (12 pos + 12 normal + 8 uv + 12 color) + 184,500 × 2
   expect(geometryBytes(mesh.geometry)).toBe(65070 * 44 + 184500 * 2);
   expect(geometryBytes(mesh.geometry)).toBe(3232080);
 
   const catalogBytes = catalog.reduce((sum, e) => sum + geometryBytes(e.geometry), 0);
   expect(geometryBytes(mesh.geometry) / catalogBytes).toBeCloseTo(39.56, 1);
 
-  // Vertex başına renk: aynı bilgi InstancedMesh'te örnek başına 12 bayttı.
+  // Color per vertex: the same information cost 12 bytes per instance on InstancedMesh.
   const colorBytes = (mesh.geometry.attributes.color as THREE.BufferAttribute).array.byteLength;
   expect(colorBytes).toBe(780840);
   expect(colorBytes / (placements.length * 12)).toBeCloseTo(54.23, 1);

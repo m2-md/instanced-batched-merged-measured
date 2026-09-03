@@ -10,7 +10,7 @@ export interface BatchCapacity {
   geometryCount: number;
 }
 
-/** Bütçe: örnek sayısı kadar instance, BENZERSİZ geometri toplamı kadar vertex/index. */
+/** Budget: as many instances as placements, as many vertices/indices as the UNIQUE geometry total. */
 export function planBatchCapacity(catalog: CatalogEntry[], placements: Placement[]): BatchCapacity {
   const used = new Set(placements.map((p) => p.typeIndex));
   let maxVertexCount = 0;
@@ -31,7 +31,7 @@ export function planBatchCapacity(catalog: CatalogEntry[], placements: Placement
 const _m = new THREE.Matrix4();
 const _c = new THREE.Color();
 
-/** 40 farklı geometri + 1200 örnek → tek BatchedMesh, tek çizim çağrısı. */
+/** 40 distinct geometries + 1200 instances → a single BatchedMesh, a single draw call. */
 export function buildBatched(
   catalog: CatalogEntry[],
   placements: Placement[],
@@ -45,14 +45,14 @@ export function buildBatched(
     material,
   );
 
-  // Faz 1: her benzersiz geometri tampona BİR kez girer.
+  // Phase 1: every unique geometry enters the buffer ONCE.
   const geometryIds = new Map<number, number>();
   const usedTypes = [...new Set(placements.map((p) => p.typeIndex))].sort((a, b) => a - b);
   for (const t of usedTypes) {
     geometryIds.set(t, mesh.addGeometry(catalog[t].geometry));
   }
 
-  // Faz 2: örnekler bir geometryId'ye referansla eklenir, transform'u sonra alır.
+  // Phase 2: instances are added as a reference to a geometryId, and get their transform after.
   for (const p of placements) {
     const instanceId = mesh.addInstance(geometryIds.get(p.typeIndex)!);
     placementMatrix(p, _m);

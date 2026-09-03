@@ -1,5 +1,5 @@
-// src/stats.ts — yüzdelikler. Ortalama yalancıdır: tek bir 40 ms'lik takılma
-// ortalamayı kıpırdatmaz ama oyunu hissedilir biçimde bozar. p95 onu görür.
+// src/stats.ts — percentiles. The mean lies: a single 40 ms hitch doesn't budge
+// the mean but visibly wrecks the game. p95 sees it.
 export function percentile(values: ArrayLike<number>, p: number): number {
   const n = values.length;
   if (n === 0) return 0;

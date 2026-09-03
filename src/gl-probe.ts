@@ -1,9 +1,9 @@
-// src/gl-probe.ts — "1 draw call" iddiasını kanıtlayan aygıt.
-// Ana sahnede zemin, grid, gölge geçişi ve post-process zinciri de sayaca
-// giriyor; bu yüzden yalnızca prop kökünü ayrı bir 1×1 WebGLRenderer'da bir kez
-// çizip renderer.info.render.calls'ı OKUYORUZ. Sonuç: yapısal tablonun ölçülmüş
-// hâli. Kamera bütün sahneyi kapsayan bir ortografik kutu, yani hiçbir şey
-// eleme yüzünden düşmüyor.
+// src/gl-probe.ts — the instrument that proves the "1 draw call" claim.
+// In the main scene the ground, the grid, the shadow pass and the post-process
+// chain also enter the counter; that is why we draw ONLY the prop root once in a
+// separate 1×1 WebGLRenderer and READ renderer.info.render.calls. The result: the
+// measured version of the structural table. The camera is an orthographic box that
+// covers the whole scene, so nothing drops out because of culling.
 import * as THREE from "three";
 
 export interface ProbeRow {
@@ -15,11 +15,11 @@ export interface ProbeRow {
 
 export interface ProbeBuild {
   name: string;
-  /** Prop kökünü kuran fonksiyon; materyali probe kendi verir. */
+  /** The function that builds the prop root; the probe supplies the material itself. */
   make: (material: THREE.Material) => THREE.Object3D;
-  /** true ise merged yolun vertex renkleri için vertexColors gerekir. */
+  /** If true, the merged path's vertex colors need vertexColors. */
   vertexColors?: boolean;
-  /** Kökü serbest bırakır; paylaşılan katalog geometrisine DOKUNMAZ. */
+  /** Releases the root; does NOT touch the shared catalog geometry. */
   release: (root: THREE.Object3D) => void;
 }
 
@@ -31,8 +31,8 @@ export function probeDrawCalls(builds: ProbeBuild[]): ProbeRow[] {
   renderer.info.autoReset = false;
   const multiDraw = renderer.extensions.has("WEBGL_multi_draw");
 
-  // Sahneyi tamamen içine alan ortografik kutu: frustum eleme devrede ama
-  // eleyecek bir şey yok, yani sayılan çağrı sayısı YAPISAL tavandır.
+  // An orthographic box that fully contains the scene: frustum culling is on but
+  // there is nothing to cull, so the call count is the STRUCTURAL ceiling.
   const camera = new THREE.OrthographicCamera(-60, 60, 60, -60, 0.1, 400);
   camera.position.set(0, 40, 120);
   camera.lookAt(0, 0, 0);
@@ -59,7 +59,7 @@ export function probeDrawCalls(builds: ProbeBuild[]): ProbeRow[] {
 
   plain.dispose();
   plainVertexColors.dispose();
-  renderer.forceContextLoss(); // 1×1 bağlamı hemen bırak
+  renderer.forceContextLoss(); // drop the 1×1 context right away
   renderer.dispose();
   return rows;
 }

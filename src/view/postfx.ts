@@ -1,7 +1,7 @@
 // view/postfx.ts — EffectComposer + UnrealBloomPass (neon glow). Bundled
-// three/examples modülleri; harici bağımlılık yok. Zincir bilerek kısa: bloom
-// yarım çözünürlükte koşar, çünkü sahnede 1.200 prop var ve amaç CPU tarafını
-// ölçmek — GPU'yu post-process'le doldurmak değil.
+// three/examples modules; no external dependency. The chain is deliberately short:
+// bloom runs at half resolution, because the scene has 1,200 props and the goal is
+// to measure the CPU side — not to fill the GPU with post-processing.
 import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
@@ -30,7 +30,7 @@ export function createPostFx(
   );
   composer.addPass(bloom);
 
-  // OutputPass: ACES tone mapping + sRGB dönüşümü zincirin sonunda uygulanır.
+  // OutputPass: ACES tone mapping + sRGB conversion applied at the end of the chain.
   composer.addPass(new OutputPass());
 
   return {

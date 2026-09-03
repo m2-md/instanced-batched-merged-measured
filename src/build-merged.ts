@@ -8,8 +8,8 @@ const _m = new THREE.Matrix4();
 const _c = new THREE.Color();
 
 /**
- * Her yerleşim için geometriyi KOPYALA, dünya matrisini uygula, hepsini birleştir.
- * Renk artık örnek başına değil VERTEX başına: material.vertexColors = true gerekir.
+ * For every placement, CLONE the geometry, apply the world matrix, merge them all.
+ * Color is no longer per instance but per VERTEX: material.vertexColors = true is required.
  */
 export function buildMerged(
   catalog: CatalogEntry[],
@@ -20,7 +20,7 @@ export function buildMerged(
 
   for (const p of placements) {
     const g = catalog[p.typeIndex].geometry.clone();
-    g.applyMatrix4(placementMatrix(p, _m)); // transform geometriye PİŞİYOR
+    g.applyMatrix4(placementMatrix(p, _m)); // the transform is BAKED into the geometry
 
     const n = g.attributes.position.count;
     const colors = new Float32Array(n * 3);
@@ -35,8 +35,8 @@ export function buildMerged(
   }
 
   const merged = mergeGeometries(parts, false);
-  for (const g of parts) g.dispose(); // kopyalar işini bitirdi
-  if (!merged) throw new Error("mergeGeometries: attribute setleri uyuşmuyor");
+  for (const g of parts) g.dispose(); // the clones are done
+  if (!merged) throw new Error("mergeGeometries: attribute sets do not match");
 
   merged.computeBoundingSphere();
   return new THREE.Mesh(merged, material);

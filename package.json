@@ -1,7 +1,7 @@
 {
   "name": "instanced-batched-merged-measured",
   "version": "1.0.0",
-  "description": "Aynı seviye dolgusu (40 prop tipi, 1200 örnek) dört inşa yoluyla kurulup ölçülüyor: naif Mesh, InstancedMesh, BatchedMesh, mergeGeometries",
+  "description": "Empirical benchmark of four Three.js rendering strategies populating 1,200 level props: naive individual meshes, InstancedMesh, BatchedMesh, and mergeGeometries.",
   "type": "module",
   "license": "MIT",
   "scripts": {

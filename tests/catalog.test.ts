@@ -2,7 +2,7 @@
 import { expect, it } from "vitest";
 import { buildCatalog } from "../src/catalog.js";
 
-it("40 geometrinin hepsi indexed ve aynı attribute setine sahip", () => {
+it("all 40 geometries are indexed and share the same attribute set", () => {
   const catalog = buildCatalog();
   expect(catalog).toHaveLength(40);
 

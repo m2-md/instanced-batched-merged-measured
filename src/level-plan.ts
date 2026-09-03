@@ -3,15 +3,15 @@ import * as THREE from "three";
 import { mulberry32 } from "./rng.js";
 
 export interface Placement {
-  typeIndex: number; // katalogdaki tip (0..39)
+  typeIndex: number; // type in the catalog (0..39)
   x: number;
   z: number;
   rotY: number;
   scale: number;
-  hue: number; // 0..1, örnek başına renk için
+  hue: number; // 0..1, for per-instance color
 }
 
-/** typeCount tipin her birinden perType kopya; tohum aynıysa sonuç aynı. */
+/** perType copies of each of typeCount types; same seed, same result. */
 export function planLevel(typeCount: number, perType: number, seed: number): Placement[] {
   const rng = mulberry32(seed);
   const out: Placement[] = [];
@@ -28,8 +28,8 @@ export function planLevel(typeCount: number, perType: number, seed: number): Pla
       });
     }
   }
-  // Deterministik Fisher-Yates: tipler sahneye karışık gelsin, gruplama işi
-  // inşa fonksiyonuna kalsın. Gerçek bir seviye editörü de sıralı vermez.
+  // Deterministic Fisher-Yates: let the types arrive at the scene shuffled, leave
+  // the grouping to the build function. A real level editor won't hand them sorted either.
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
     const tmp = out[i];
@@ -44,7 +44,7 @@ const _p = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 const _s = new THREE.Vector3();
 
-/** Yerleşimi 4x4 matrise derler. Scratch'ler döngü dışında: kare başına sıfır ayırma. */
+/** Compiles a placement into a 4x4 matrix. Scratches live outside the loop: zero allocation per frame. */
 export function placementMatrix(p: Placement, target: THREE.Matrix4): THREE.Matrix4 {
   _p.set(p.x, p.scale * 0.5, p.z);
   _q.setFromAxisAngle(UP, p.rotY);

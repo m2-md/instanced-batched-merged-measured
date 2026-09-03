@@ -1,5 +1,5 @@
-// src/frame-timer.ts — serinin ilk yazısındaki halka tampon. Kare süresini
-// sabit kapasiteli bir Float64Array'e yazar; kare başına ayırma yok.
+// src/frame-timer.ts — the ring buffer from the first article in the series. Writes
+// frame times into a fixed-capacity Float64Array; no allocation per frame.
 export class FrameTimer {
   private readonly ring: Float64Array;
   private head = 0;
@@ -8,7 +8,7 @@ export class FrameTimer {
 
   constructor(readonly capacity = 240) {
     if (!Number.isInteger(capacity) || capacity < 1) {
-      throw new RangeError("capacity pozitif bir tam sayı olmalı");
+      throw new RangeError("capacity must be a positive integer");
     }
     this.ring = new Float64Array(capacity);
   }
@@ -29,7 +29,7 @@ export class FrameTimer {
     if (this.filled < this.capacity) this.filled++;
   }
 
-  /** Dolu bölgenin kopyası. Sıralama yapmayız; onu stats modülü yapar. */
+  /** A copy of the filled region. We don't sort; the stats module does that. */
   values(): Float64Array {
     return Float64Array.from(this.ring.subarray(0, this.filled));
   }

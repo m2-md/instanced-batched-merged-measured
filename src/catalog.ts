@@ -11,8 +11,8 @@ export interface CatalogEntry {
 const FAMILIES = [
   { kind: "crate",   make: (s: number) => new THREE.BoxGeometry(0.7 + s * 0.18, 0.7 + s * 0.12, 0.7 + s * 0.15) },
   { kind: "barrel",  make: (s: number) => new THREE.CylinderGeometry(0.32 + s * 0.05, 0.36 + s * 0.05, 0.9 + s * 0.12, 10) },
-  // IcosahedronGeometry index'siz doğar; mergeVertices onu indexed hâle getirir.
-  // Neden şart olduğunu Yol 2'de göreceğiz — BatchedMesh bu konuda taviz vermiyor.
+  // IcosahedronGeometry is born without an index; mergeVertices makes it indexed.
+  // Why that is mandatory shows up in Path 2 — BatchedMesh does not budge on this.
   { kind: "rock",    make: (s: number) => mergeVertices(new THREE.IcosahedronGeometry(0.35 + s * 0.12, s < 3 ? 0 : 1)) },
   { kind: "plant",   make: (s: number) => new THREE.ConeGeometry(0.28 + s * 0.06, 0.8 + s * 0.2, 7) },
   { kind: "lantern", make: (s: number) => new THREE.SphereGeometry(0.26 + s * 0.05, 9, 7) },
@@ -21,7 +21,7 @@ const FAMILIES = [
   { kind: "shard",   make: (s: number) => mergeVertices(new THREE.DodecahedronGeometry(0.3 + s * 0.08)) },
 ];
 
-/** 8 aile × 5 boy = 40 prop tipi. Sıra sabit; typeIndex bu sıradaki konumdur. */
+/** 8 families × 5 sizes = 40 prop types. Order is fixed; typeIndex is the position in it. */
 export function buildCatalog(): CatalogEntry[] {
   const out: CatalogEntry[] = [];
   for (const f of FAMILIES) {

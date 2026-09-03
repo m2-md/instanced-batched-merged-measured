@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { planLevel } from "../src/level-plan.js";
 
-/** Yerleşim listesinin FNV-1a hash'i — determinizm için ucuz parmak izi. */
+/** FNV-1a hash of the placement list — a cheap fingerprint for determinism. */
 function hashPlan(ps: ReturnType<typeof planLevel>): string {
   let h = 2166136261 >>> 0;
   for (const p of ps) {
@@ -16,15 +16,15 @@ function hashPlan(ps: ReturnType<typeof planLevel>): string {
 }
 
 describe("planLevel", () => {
-  it("aynı tohum → aynı plan", () => {
+  it("same seed → same plan", () => {
     expect(hashPlan(planLevel(40, 30, 1337))).toBe(hashPlan(planLevel(40, 30, 1337)));
   });
 
-  it("farklı tohum → farklı plan", () => {
+  it("different seed → different plan", () => {
     expect(hashPlan(planLevel(40, 30, 1337))).not.toBe(hashPlan(planLevel(40, 30, 7)));
   });
 
-  it("her tipten tam perType kopya üretir", () => {
+  it("produces exactly perType copies of every type", () => {
     const ps = planLevel(40, 30, 1337);
     expect(ps).toHaveLength(1200);
     const counts = new Map<number, number>();

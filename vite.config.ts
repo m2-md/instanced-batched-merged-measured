@@ -3,10 +3,10 @@ import { resolve } from "node:path";
 import { defineConfig, type Plugin } from "vite";
 
 /**
- * Geliştirme eklentisi: demo `?bench=1` ile açıldığında kısa süpürmenin
- * sonucunu POST /__bench'e gönderir, biz de proje köküne bench-result.json
- * yazarız. Makaledeki CPU tablosunu elle kopyalamak yerine gerçek çıktıdan
- * doldurmak için var; normal `npm run dev` akışına dokunmaz.
+ * Development plugin: when the demo is opened with `?bench=1` it POSTs the result
+ * of the short sweep to /__bench, and we write bench-result.json into the project
+ * root. It exists so the CPU table in the article can be filled from real output
+ * instead of copied by hand; it does not touch the normal `npm run dev` flow.
  */
 function benchSink(): Plugin {
   return {
@@ -23,7 +23,7 @@ function benchSink(): Plugin {
         req.on("end", () => {
           const out = resolve(process.cwd(), "bench-result.json");
           writeFileSync(out, body);
-          server.config.logger.info(`[bench-sink] ${out} yazıldı (${body.length} B)`);
+          server.config.logger.info(`[bench-sink] wrote ${out} (${body.length} B)`);
           res.statusCode = 204;
           res.end();
         });
@@ -35,10 +35,10 @@ function benchSink(): Plugin {
 export default defineConfig({
   plugins: [benchSink()],
   server: {
-    // Cross-origin isolation OLMADAN Chrome performance.now()'u 100 µs'ye
-    // yuvarlar — merged yolun kare süresi olduğu gibi 0,0 ms görünür. Bu iki
-    // başlık sayfayı izole edip saati 5 µs çözünürlüğe çıkarır. Bütün varlıklar
-    // aynı origin'den geldiği için require-corp hiçbir şeyi kırmıyor.
+    // WITHOUT cross-origin isolation Chrome rounds performance.now() to 100 µs —
+    // the merged path's frame time shows up as a flat 0.0 ms. These two headers
+    // isolate the page and take the clock to 5 µs resolution. Every asset comes
+    // from the same origin, so require-corp breaks nothing.
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",
       "Cross-Origin-Embedder-Policy": "require-corp",

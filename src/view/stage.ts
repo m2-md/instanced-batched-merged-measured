@@ -1,10 +1,10 @@
-// view/stage.ts — sinematik sahne kurulumu (dark cinematic + neon glow).
-// Sadece SUNUM: renderer/tone mapping, PBR ortam (RoomEnvironment), gölge atan
-// ışıklar, zemin ve prop materyalleri. Dört inşa yolunun hiçbirine dokunmaz.
+// view/stage.ts — cinematic scene setup (dark cinematic + neon glow).
+// PRESENTATION only: renderer/tone mapping, PBR environment (RoomEnvironment),
+// shadow-casting lights, ground and prop materials. Touches none of the four build paths.
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
-// Neon accent paleti (makale görsel spec).
+// Neon accent palette (article visual spec).
 export const ACCENT = {
   cyan: 0x22d3ee,
   violet: 0xa78bfa,
@@ -20,7 +20,7 @@ export interface Stage {
   key: THREE.DirectionalLight;
 }
 
-// Derin radial gradient arka plan — CSS paletiyle aynı tonlar.
+// Deep radial gradient background — the same tones as the CSS palette.
 function makeBackgroundTexture(): THREE.Texture {
   const size = 1024;
   const c = document.createElement("canvas");
@@ -48,24 +48,24 @@ function makeBackgroundTexture(): THREE.Texture {
 export function createStage(canvas: HTMLCanvasElement): Stage {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  // 1,5 tavanı bilinçli: 1.200 prop + bloom zinciri retina'da bedava değil.
+  // The 1.5 ceiling is deliberate: 1,200 props + the bloom chain are not free on retina.
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 0.92;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFShadowMap; // PCFSoftShadowMap r185'te deprecate
-  // Prop'lar kımıldamıyor, ışık kımıldamıyor: gölge haritası KARE BAŞINA değil,
-  // inşa başına bir kez çizilsin. Naif yolda bu, kare başına 1.200 çizim çağrısı
-  // eksiltir — ölçümü değil, demonun kendisini hafifletir.
+  renderer.shadowMap.type = THREE.PCFShadowMap; // PCFSoftShadowMap is deprecated in r185
+  // The props don't move and the light doesn't move: draw the shadow map once per
+  // BUILD, not per FRAME. On the naive path this saves 1,200 draw calls per frame —
+  // it lightens the demo itself, not the measurement.
   renderer.shadowMap.autoUpdate = false;
-  renderer.info.autoReset = false; // sayaçları kare başına biz sıfırlıyoruz
+  renderer.info.autoReset = false; // we reset the counters per frame ourselves
 
   const scene = new THREE.Scene();
   scene.background = makeBackgroundTexture();
   scene.fog = new THREE.FogExp2(0x080a11, 0.018);
 
-  // PBR yansımalar için gömülü RoomEnvironment → PMREM (harici HDRI YOK).
+  // Bundled RoomEnvironment → PMREM for PBR reflections (NO external HDRI).
   const pmrem = new THREE.PMREMGenerator(renderer);
   const roomEnv = new RoomEnvironment();
   scene.environment = pmrem.fromScene(roomEnv, 0.04).texture;
@@ -91,10 +91,10 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   scene.add(key);
   scene.add(key.target);
 
-  // Hemisphere fill — gökten mavi, yerden koyu dolgu.
+  // Hemisphere fill — blue from the sky, dark fill from the ground.
   scene.add(new THREE.HemisphereLight(0x9fb4ff, 0x0a0c16, 0.32));
 
-  // Renkli rim ışıklar — sinematik neon kenar (cyan + violet).
+  // Colored rim lights — cinematic neon edge (cyan + violet).
   const rimCyan = new THREE.DirectionalLight(ACCENT.cyan, 0.75);
   rimCyan.position.set(-18, 6, -14);
   scene.add(rimCyan);
@@ -105,8 +105,8 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   return { renderer, scene, camera, key };
 }
 
-// Geniş zemin: gölge alır, kenarlarda fog ile karanlığa erir. Üstünde solan
-// neon grid.
+// Wide ground: receives shadows, dissolves into darkness at the edges with fog.
+// A fading neon grid on top.
 export function createGround(scene: THREE.Scene): void {
   const plane = new THREE.Mesh(
     new THREE.PlaneGeometry(200, 200),
@@ -131,13 +131,13 @@ export function createGround(scene: THREE.Scene): void {
 }
 
 /**
- * Prop materyali. Örnek başına renk InstancedMesh/BatchedMesh'te tampondan gelir
- * ve taban rengiyle ÇARPILIR; taban bu yüzden soğuk ve orta tonda — beyaz taban
- * ACES + bloom altında bütün sahneyi patlatıyor. Merged yolda aynı renk vertex'e
- * pişer, o yüzden `vertexColors: true` isteyen bir ikinci kopya gerekiyor.
+ * The prop material. Per-instance color comes from a buffer on InstancedMesh/BatchedMesh
+ * and is MULTIPLIED with the base color; the base is cool and mid-toned for that reason —
+ * a white base blows out the whole scene under ACES + bloom. On the merged path the same
+ * color is baked into the vertices, so a second copy asking for `vertexColors: true` is needed.
  *
- * Naif yol tek materyali PAYLAŞTIĞI için örnek başına renk alamaz: dört yolun
- * üçgeni ve çizim çağrısı aynı, ama naif sahne tek tonda görünür. Bedeli bu.
+ * The naive path SHARES one material, so it cannot take a per-instance color: the four paths
+ * have the same triangles and draw calls, but the naive scene looks single-toned. That's the price.
  */
 export function createPropMaterial(vertexColors: boolean): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({

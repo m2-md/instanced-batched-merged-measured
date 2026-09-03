@@ -14,7 +14,7 @@ export interface PathResult {
 export const WARMUP_FRAMES = 20;
 export const MEASURE_FRAMES = 120;
 
-/** Tek bir yolu ölçer. renderFrame(frameIndex) bir kare çizip döner. */
+/** Measures a single path. renderFrame(frameIndex) draws one frame and returns. */
 export function measurePath(
   name: string,
   renderFrame: (frame: number) => void,

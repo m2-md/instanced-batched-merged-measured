@@ -6,7 +6,7 @@ import { planLevel } from "../src/level-plan.js";
 import { buildNaive } from "../src/build-naive.js";
 import { memoryReport } from "../src/geometry-bytes.js";
 
-it("naif yol 1.200 düğüm kurar ama 40 geometri + 1 materyal paylaşır", () => {
+it("the naive path builds 1,200 nodes but shares 40 geometries + 1 material", () => {
   const catalog = buildCatalog();
   const placements = planLevel(40, 30, 1337);
   const material = new THREE.MeshBasicMaterial();
@@ -19,10 +19,10 @@ it("naif yol 1.200 düğüm kurar ama 40 geometri + 1 materyal paylaşır", () =
   expect(geometries.size).toBe(40);
   expect(materials.size).toBe(1);
 
-  // Makalenin dürüstlük çizgisi: naif yolun bedeli BELLEK değil. GPU tamponu
-  // katalogun aynısı — instance tamponu bile yok.
+  // The article's honesty line: the naive path's cost is not MEMORY. The GPU buffer
+  // is identical to the catalog — there isn't even an instance buffer.
   const mem = memoryReport(group);
   expect(mem.geometryBytes).toBe(81708);
   expect(mem.instanceBytes).toBe(0);
-  expect(mem.nodes).toBe(1201); // 1200 prop + kök Group
+  expect(mem.nodes).toBe(1201); // 1200 props + the root Group
 });

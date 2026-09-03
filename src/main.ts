@@ -1,11 +1,11 @@
-// src/main.ts — demo: aynı seviye dolgusu (40 tip, 1.200 prop), dört inşa yolu,
-// tuşla geçiş. Sayıların hangisi ÖLÇÜM hangisi MODEL olduğu HUD'da etiketli.
-//   1/2/3/4 → naif Mesh · InstancedMesh · BatchedMesh · mergeGeometries
-//   M       → kısa CPU kare süpürmesi (20 ısınma + 120 ölçüm, yol başına)
-//   G       → props-only GL çağrı probe'u (ayrı 1×1 renderer)
-//   C       → BatchedMesh.perObjectFrustumCulled + sortObjects aç/kapat
-//   P       → otomatik yörünge / elle orbit
-//   tık     → raycast: instanceId · batchId · faceIndex
+// src/main.ts — demo: the same level fill (40 types, 1,200 props), four build paths,
+// switched with a key. The HUD labels which numbers are MEASUREMENTS and which are MODEL.
+//   1/2/3/4 → naive Mesh · InstancedMesh · BatchedMesh · mergeGeometries
+//   M       → short CPU frame sweep (20 warmup + 120 measured, per path)
+//   G       → props-only GL call probe (separate 1×1 renderer)
+//   C       → BatchedMesh.perObjectFrustumCulled + sortObjects on/off
+//   P       → automatic orbit / manual orbit
+//   click   → raycast: instanceId · batchId · faceIndex
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildCatalog } from "./catalog.js";
@@ -27,8 +27,8 @@ import { collectHudElements, Hud } from "./view/hud.js";
 const TYPES = 40;
 const PER_TYPE = 30;
 const SEED = 1337;
-const ORBIT_FRAMES = 900; // canlı yörüngenin bir turu (~15 s @60fps)
-const SWEEP_WIDTH = 640; // süpürme hedefi küçük: GPU değil CPU baskın olsun
+const ORBIT_FRAMES = 900; // one lap of the live orbit (~15 s @60fps)
+const SWEEP_WIDTH = 640; // small sweep target: let the CPU dominate, not the GPU
 const SWEEP_HEIGHT = 360;
 
 const catalog = buildCatalog();
@@ -51,11 +51,11 @@ controls.dampingFactor = 0.08;
 controls.minDistance = 6;
 controls.maxDistance = 120;
 controls.maxPolarAngle = Math.PI * 0.49;
-controls.enabled = false; // otomatik yörünge açıkken kamerayı biz sürüyoruz
+controls.enabled = false; // while the automatic orbit is on, we drive the camera
 
 interface BuildPath {
   name: string;
-  propDraw: number; // MODEL: prop'ları çizmenin yapısal çağrı sayısı
+  propDraw: number; // MODEL: the structural call count for drawing the props
   vertexColors: boolean;
   make: (material: THREE.Material) => THREE.Object3D;
 }
@@ -92,24 +92,24 @@ function materialFor(path: BuildPath): THREE.Material {
 }
 
 /**
- * Kökü serbest bırakır. Katalog geometrisi DÖRT yolda da paylaşıldığı için
- * onu dispose etmek yasak; ederse ikinci yola geçtiğinde sahne boşalır.
+ * Releases the root. The catalog geometry is shared by ALL FOUR paths, so disposing
+ * it is forbidden; if you do, the scene empties out when you switch to the second path.
  */
 function releaseRoot(root: THREE.Object3D): void {
   root.traverse((o) => {
     const inst = o as THREE.InstancedMesh;
     if (inst.isInstancedMesh) {
-      inst.dispose(); // instanceMatrix + instanceColor tamponları
+      inst.dispose(); // instanceMatrix + instanceColor buffers
       return;
     }
     const batched = o as THREE.BatchedMesh;
     if (batched.isBatchedMesh) {
-      batched.dispose(); // birleşik tampon + matris/renk dokuları
+      batched.dispose(); // the combined buffer + matrix/color textures
       return;
     }
     const mesh = o as THREE.Mesh;
     if (mesh.isMesh && mesh.geometry && !catalogUuids.has(mesh.geometry.uuid)) {
-      mesh.geometry.dispose(); // yalnızca merged yolun kendi geometrisi
+      mesh.geometry.dispose(); // only the merged path's own geometry
     }
   });
 }
@@ -120,7 +120,7 @@ function applyShadows(root: THREE.Object3D): void {
   });
 }
 
-// --- Aktif yol ---
+// --- Active path ---
 let pathIndex = -1;
 let root: THREE.Object3D | null = null;
 let buildMs = 0;
@@ -142,7 +142,7 @@ function setPath(index: number): void {
   applyBatchedFlags(root);
   applyShadows(root);
   stage.scene.add(root);
-  // Gölge haritası kare başına değil, inşa başına bir kez çizilir.
+  // The shadow map is drawn once per build, not once per frame.
   stage.renderer.shadowMap.needsUpdate = true;
 
   const mem = memoryReport(root);
@@ -156,15 +156,15 @@ function setPath(index: number): void {
   hud.setFlags(hasMultiDraw, cullingFlag());
   hud.setPick("—");
   console.log(
-    `[${path.name}] build ${buildMs.toFixed(2)} ms · geometri ${formatBytes(mem.geometryBytes)}` +
-      ` + instance ${formatBytes(mem.instanceBytes)} · düğüm ${mem.nodes}`,
+    `[${path.name}] build ${buildMs.toFixed(2)} ms · geometry ${formatBytes(mem.geometryBytes)}` +
+      ` + instance ${formatBytes(mem.instanceBytes)} · nodes ${mem.nodes}`,
   );
 }
 
-// BatchedMesh'in per-object elemesi ve derinlik sıralaması CPU'da koşar; ikisi de
-// varsayılan olarak AÇIK. C tuşu bu bayrağı çevirir ve süpürme de bu değerle
-// koşar — böylece "tek çizim çağrısı ama CPU'da 1.200 örnek eleniyor" farkını
-// aynı ölçüm aletiyle görebiliyorsun.
+// BatchedMesh's per-object culling and depth sorting run on the CPU; both are ON by
+// default. The C key flips this flag and the sweep runs with that value too — so you
+// can see the "one draw call but 1,200 instances culled on the CPU" difference with
+// the same instrument.
 let batchedCulling = new URLSearchParams(location.search).get("nocull") !== "1";
 
 function applyBatchedFlags(o: THREE.Object3D): void {
@@ -180,7 +180,7 @@ function cullingFlag(): boolean {
 
 const hasMultiDraw = stage.renderer.extensions.has("WEBGL_multi_draw");
 
-// --- Canlı döngü ---
+// --- Live loop ---
 const timer = new FrameTimer(120);
 const _pose = new THREE.Vector3();
 let frame = 0;
@@ -189,7 +189,7 @@ let busy = false;
 
 function tick(): void {
   requestAnimationFrame(tick);
-  if (busy) return; // süpürme/probe kendi döngüsünü koşuyor
+  if (busy) return; // the sweep/probe is running its own loop
 
   timer.begin();
   if (autoOrbit) {
@@ -199,7 +199,7 @@ function tick(): void {
   } else {
     controls.update();
   }
-  stage.renderer.info.reset(); // autoReset=false: post-process pass'leri de sayılsın
+  stage.renderer.info.reset(); // autoReset=false: count the post-process passes too
   postfx.composer.render();
   timer.end();
 
@@ -220,10 +220,10 @@ function tick(): void {
   }
 }
 
-// --- M: kısa CPU kare süpürmesi ---
-// Ölçüm render'dan ayrık tutulur: gölge geçişi ve bloom zinciri dışarıda
-// (shadowMap.autoUpdate=false + düz renderer.render), hedef 640×360, kamera
-// kare indeksine bağlı. Dört yol da aynı 140 kareyi aynı pozlardan görür.
+// --- M: short CPU frame sweep ---
+// The measurement is decoupled from rendering: the shadow pass and the bloom chain are
+// out (shadowMap.autoUpdate=false + a plain renderer.render), the target is 640×360, the
+// camera follows the frame index. All four paths see the same 140 frames from the same poses.
 const sweepTarget = new THREE.WebGLRenderTarget(SWEEP_WIDTH, SWEEP_HEIGHT);
 const sweepCamera = new THREE.PerspectiveCamera(52, SWEEP_WIDTH / SWEEP_HEIGHT, 0.1, 400);
 
@@ -266,7 +266,7 @@ function runSweep(onDone?: (results: PathResult[]) => void): void {
   const restore = pathIndex;
   const sweepStart = performance.now();
 
-  // Aktif kökü sahneden çıkar: ölçülen yolun üstüne başka bir yol çizilmesin.
+  // Take the active root out of the scene: don't draw another path on top of the measured one.
   if (root) {
     stage.scene.remove(root);
     releaseRoot(root);
@@ -274,8 +274,8 @@ function runSweep(onDone?: (results: PathResult[]) => void): void {
   }
   stage.renderer.setRenderTarget(sweepTarget);
 
-  // Bloke edici işi parçalara böl: yol başına bir setTimeout(fn, 0). Burada
-  // requestAnimationFrame İŞE YARAMAZ — sekme arkada kalırsa hiç çağrılmaz.
+  // Split the blocking work into chunks: one setTimeout(fn, 0) per path. Here
+  // requestAnimationFrame DOES NOT WORK — if the tab goes to the background it is never called.
   const step = (i: number): void => {
     if (i < PATHS.length) {
       results.push(sweepOne(i));
@@ -287,7 +287,7 @@ function runSweep(onDone?: (results: PathResult[]) => void): void {
     const note =
       `${SWEEP_WIDTH}×${SWEEP_HEIGHT} · ${WARMUP_FRAMES} warmup + ${MEASURE_FRAMES} frames` +
       ` · shadow pass + bloom OFF · seed ${SEED} · dpr ${window.devicePixelRatio}` +
-      ` · toplam ${(sweepMs / 1000).toFixed(1)} s`;
+      ` · total ${(sweepMs / 1000).toFixed(1)} s`;
     hud.setSweep(results, note);
     console.table(
       results.map((r) => ({
@@ -307,7 +307,7 @@ function runSweep(onDone?: (results: PathResult[]) => void): void {
   setTimeout(() => step(0), 0);
 }
 
-// --- G: props-only GL çağrı probe'u ---
+// --- G: props-only GL call probe ---
 function runProbe(onDone?: (rows: ProbeRow[]) => void): void {
   if (busy) return;
   busy = true;
@@ -322,7 +322,7 @@ function runProbe(onDone?: (rows: ProbeRow[]) => void): void {
       })),
     );
     const note =
-      `ayrı 1×1 renderer · yalnızca prop kökü · ortografik kutu (eleme yok)` +
+      `separate 1×1 renderer · prop root only · orthographic box (no culling)` +
       ` · WEBGL_multi_draw: ${rows[0]?.multiDraw ? "YES" : "NO"}`;
     hud.setProbe(rows, note);
     console.table(rows);
@@ -332,7 +332,7 @@ function runProbe(onDone?: (rows: ProbeRow[]) => void): void {
   }, 0);
 }
 
-// --- C: BatchedMesh per-object eleme ---
+// --- C: BatchedMesh per-object culling ---
 function toggleCulling(): void {
   batchedCulling = !batchedCulling;
   if (root) applyBatchedFlags(root);
@@ -349,7 +349,7 @@ canvas.addEventListener("pointerdown", (e) => {
 });
 
 canvas.addEventListener("pointerup", (e) => {
-  if (Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 4) return; // sürükleme, tık değil
+  if (Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 4) return; // a drag, not a click
   if (!root || busy) return;
   pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
   pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -366,13 +366,13 @@ canvas.addEventListener("pointerup", (e) => {
       ? `instanceId ${h.instanceId}`
       : h.batchId !== undefined
         ? `batchId ${h.batchId}`
-        : `faceIndex ${h.faceIndex} · HANGİ PROP BİLİNMİYOR`;
+        : `faceIndex ${h.faceIndex} · WHICH PROP IS UNKNOWN`;
   const text = `${PATHS[pathIndex].name} → ${id} · ${h.distance.toFixed(2)} m`;
   hud.setPick(text);
   console.log(`[pick] ${text}`, h);
 });
 
-// --- Klavye ---
+// --- Keyboard ---
 window.addEventListener("keydown", (e) => {
   const k = e.key.toLowerCase();
   if (k >= "1" && k <= "4") {
@@ -402,20 +402,20 @@ window.addEventListener("resize", () => {
   postfx.resize(w, h);
 });
 
-// Açılış yolu ?path=1..4 ile seçilebilir; ekran görüntüsü ve hata ayıklama için.
+// The opening path can be chosen with ?path=1..4; for screenshots and debugging.
 const wantedPath = Number(new URLSearchParams(location.search).get("path") ?? 1);
 setPath(Number.isFinite(wantedPath) ? Math.min(4, Math.max(1, wantedPath)) - 1 : 0);
 tick();
 
 console.log(
-  `${TYPES} tip × ${PER_TYPE} kopya = ${placements.length} prop · tohum ${SEED}` +
-    ` · three ${THREE.REVISION} · WEBGL_multi_draw: ${hasMultiDraw ? "var" : "YOK"}`,
+  `${TYPES} types × ${PER_TYPE} copies = ${placements.length} props · seed ${SEED}` +
+    ` · three ${THREE.REVISION} · WEBGL_multi_draw: ${hasMultiDraw ? "yes" : "NO"}`,
 );
 
-// --- Ölçüm modu: ?bench=1 ---
-// Demo bu parametreyle açılırsa probe + süpürme kendiliğinden koşar ve sonucu
-// vite eklentisine POST eder (bench-result.json). Makaledeki CPU tablosu bu
-// çıktıdan doluyor; normal açılışta bu blok hiç çalışmaz.
+// --- Measurement mode: ?bench=1 ---
+// If the demo is opened with this parameter, the probe + sweep run on their own and
+// POST the result to the vite plugin (bench-result.json). The CPU table in the article
+// is filled from this output; on a normal load this block never runs.
 if (new URLSearchParams(location.search).get("bench") === "1") {
   const gl = stage.renderer.getContext();
   const dbg = gl.getExtension("WEBGL_debug_renderer_info");
@@ -423,7 +423,7 @@ if (new URLSearchParams(location.search).get("bench") === "1") {
     gpu: dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : "unknown",
     vendor: dbg ? gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) : "unknown",
     multiDraw: hasMultiDraw,
-    crossOriginIsolated: window.crossOriginIsolated, // false ise saat 100 µs'ye yuvarlanır
+    crossOriginIsolated: window.crossOriginIsolated, // if false, the clock rounds to 100 µs
     devicePixelRatio: window.devicePixelRatio,
     userAgent: navigator.userAgent,
     sweep: {
@@ -446,9 +446,9 @@ if (new URLSearchParams(location.search).get("bench") === "1") {
           releaseRoot(local);
           return { name: p.name, ...mem, propDraw: p.propDraw };
         });
-        // Süpürme bittikten sonra 1,5 s canlı döngü: post-process zinciri dahil
-        // GERÇEK kare süresi. Süpürme sayıları buna eşit değil (o hedefte bloom
-        // ve gölge kapalıydı); ikisini ayrı raporluyoruz.
+        // 1.5 s of the live loop after the sweep ends: the REAL frame time including
+        // the post-process chain. The sweep numbers are not equal to this (bloom and
+        // shadows were off on that target); we report the two separately.
         setTimeout(() => {
           const v = timer.values();
           payload.live = {
@@ -463,7 +463,7 @@ if (new URLSearchParams(location.search).get("bench") === "1") {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify(payload, null, 2),
-          }).then(() => console.log("[bench] sonuç POST edildi"));
+          }).then(() => console.log("[bench] result POSTed"));
         }, 1500);
       });
     });
